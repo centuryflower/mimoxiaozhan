@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>管理后台 - 自动发卡</title>
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    .admin-layout { display: flex; min-height: calc(100vh - 3.5rem); }
+    .sidebar {
+      width: 200px;
+      background: var(--card);
+      border-right: 1px solid var(--border);
+      padding: 1rem 0;
+      flex-shrink: 0;
+    }
+    .sidebar-item {
+      display: block;
+      padding: 0.6rem 1.5rem;
+      font-size: 0.85rem;
+      color: var(--text-2);
+      cursor: pointer;
+      transition: all 0.15s;
+      border: none;
+      background: none;
+      width: 100%;
+      text-align: left;
+      font-family: inherit;
+    }
+    .sidebar-item:hover { background: var(--bg); color: var(--text); }
+    .sidebar-item.active { color: var(--primary); background: var(--primary-light); font-weight: 600; }
+
+    .admin-main { flex: 1; padding: 1.5rem; overflow-x: auto; }
+    .admin-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+    .admin-title { font-size: 1.2rem; font-weight: 700; }
+
+    /* 统计卡片 */
+    .stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+    .stat-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+    }
+    .stat-label { font-size: 0.78rem; color: var(--text-3); margin-bottom: 0.4rem; }
+    .stat-value { font-size: 1.5rem; font-weight: 700; }
+
+    /* 表格 */
+    .table-wrap { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    th { background: var(--bg); text-align: left; padding: 0.75rem 1rem; font-weight: 600; color: var(--text-2); white-space: nowrap; }
+    td { padding: 0.75rem 1rem; border-top: 1px solid var(--border); }
+    tr:hover td { background: var(--bg); }
+
+    .badge {
+      display: inline-block;
+      padding: 0.15em 0.6em;
+      border-radius: 99px;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+    .badge-success { background: #10b98120; color: #10b981; }
+    .badge-warning { background: #f59e0b20; color: #f59e0b; }
+    .badge-danger { background: #ef444420; color: #ef4444; }
+    .badge-info { background: #4361ee20; color: #4361ee; }
+
+    .action-btn {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.3rem 0.7rem;
+      font-size: 0.75rem;
+      cursor: pointer;
+      margin-right: 0.3rem;
+      font-family: inherit;
+      transition: all 0.15s;
+    }
+    .action-btn:hover { border-color: var(--primary); color: var(--primary); }
+    .action-btn.danger:hover { border-color: var(--danger); color: var(--danger); }
+
+    /* 登录 */
+    .login-box {
+      max-width: 360px;
+      margin: 4rem auto;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 2rem;
+    }
+    .login-box h2 { text-align: center; margin-bottom: 1.5rem; }
+
+    /* Tab panes */
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+
+    /* textarea */
+    textarea.form-input {
+      height: auto;
+      min-height: 120px;
+      padding: 0.75rem;
+      resize: vertical;
+    }
+
+    .inline-form { display: flex; gap: 0.5rem; align-items: flex-end; flex-wrap: wrap; }
+    .inline-form .form-group { margin-bottom: 0; }
+
+    @media (max-width: 768px) {
+      .sidebar { display: none; }
+      .stats { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="container header-inner">
+      <a href="/" class="logo">⚡ 发卡后台</a>
+      <nav class="nav">
+        <a href="/" class="nav-link">前台</a>
+        <button class="nav-link" onclick="logout()" style="background:none;border:none;cursor:pointer;font-family:inherit;font-size:0.85rem;color:var(--text-2);">退出</button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- 登录 -->
+  <div id="login-view">
+    <div class="login-box">
+      <h2>🔑 管理员登录</h2>
+      <div class="form-group">
+        <label class="form-label">用户名</label>
+        <input type="text" class="form-input" id="login-user" value="admin">
+      </div>
+      <div class="form-group">
+        <label class="form-label">密码</label>
+        <input type="password" class="form-input" id="login-pass" placeholder="请输入密码">
+      </div>
+      <button class="btn btn-primary btn-block" onclick="doLogin()">登录</button>
+    </div>
+  </div>
+
+  <!-- 后台主体 -->
+  <div id="admin-view" class="admin-layout" style="display:none;">
+    <aside class="sidebar">
+      <button class="sidebar-item active" onclick="switchTab('dashboard', this)">📊 仪表盘</button>
+      <button class="sidebar-item" onclick="switchTab('products', this)">📦 商品管理</button>
+      <button class="sidebar-item" onclick="switchTab('orders', this)">📋 订单管理</button>
+      <button class="sidebar-item" onclick="switchTab('settings', this)">⚙️ 设置</button>
+    </aside>
+
+    <main class="admin-main">
+      <!-- 仪表盘 -->
+      <div class="tab-pane active" id="tab-dashboard">
+        <div class="admin-header">
+          <div class="admin-title">仪表盘</div>
+        </div>
+        <div class="stats" id="stats"></div>
+        <div class="admin-title" style="font-size:1rem;margin-bottom:1rem;">最近订单</div>
+        <div class="table-wrap" id="recent-orders"></div>
+      </div>
+
+      <!-- 商品管理 -->
+      <div class="tab-pane" id="tab-products">
+        <div class="admin-header">
+          <div class="admin-title">商品管理</div>
+        </div>
+
+        <!-- 添加商品 -->
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:1.5rem;margin-bottom:1.5rem;">
+          <h4 style="margin-bottom:1rem;font-size:0.95rem;">添加商品</h4>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
+            <div class="form-group">
+              <label class="form-label">商品名称</label>
+              <input type="text" class="form-input" id="p-name" placeholder="如：VIP月卡">
+            </div>
+            <div class="form-group">
+              <label class="form-label">分类</label>
+              <input type="text" class="form-input" id="p-category" placeholder="如：会员" value="默认">
+            </div>
+            <div class="form-group">
+              <label class="form-label">价格（元）</label>
+              <input type="number" class="form-input" id="p-price" placeholder="19.90" step="0.01">
+            </div>
+            <div class="form-group">
+              <label class="form-label">描述</label>
+              <input type="text" class="form-input" id="p-desc" placeholder="一句话描述">
+            </div>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="addProduct()" style="margin-top:0.5rem;">添加商品</button>
+        </div>
+
+        <!-- 商品列表 -->
+        <div class="table-wrap" id="products-table"></div>
+      </div>
+
+      <!-- 订单管理 -->
+      <div class="tab-pane" id="tab-orders">
+        <div class="admin-header">
+          <div class="admin-title">订单管理</div>
+        </div>
+        <div class="table-wrap" id="orders-table"></div>
+      </div>
+
+      <!-- 设置 -->
+      <div class="tab-pane" id="tab-settings">
+        <div class="admin-header">
+          <div class="admin-title">设置</div>
+        </div>
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:1.5rem;max-width:500px;">
+          <h4 style="margin-bottom:1rem;">收款码配置</h4>
+          <div class="form-group">
+            <label class="form-label">微信收款码</label>
+            <input type="file" class="form-input" id="upload-wechat" accept="image/*" onchange="uploadQR(this, 'wechat')">
+          </div>
+          <div class="form-group">
+            <label class="form-label">支付宝收款码</label>
+            <input type="file" class="form-input" id="upload-alipay" accept="image/*" onchange="uploadQR(this, 'alipay')">
+          </div>
+          <p style="font-size:0.78rem;color:var(--text-3);margin-top:0.5rem;">上传后需要手动更新 config.js 中的路径</p>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- 卡密弹窗 -->
+  <div class="modal-overlay" id="card-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title" id="card-modal-title">管理卡密</h3>
+        <button class="modal-close" onclick="document.getElementById('card-modal').classList.remove('show')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">添加卡密（每行一个）</label>
+          <textarea class="form-input" id="card-content" placeholder="账号1&#10;账号2&#10;账号3"></textarea>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="addCards()">添加</button>
+        <div style="margin-top:1.5rem;">
+          <div class="admin-title" style="font-size:0.95rem;">已有卡密</div>
+          <div id="cards-list" style="margin-top:0.75rem;font-size:0.85rem;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentCardProductId = null;
+
+    // ========== 登录 ==========
+    async function doLogin() {
+      const username = document.getElementById('login-user').value;
+      const password = document.getElementById('login-pass').value;
+      try {
+        const res = await fetch('/api/admin/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+        if (!res.ok) throw new Error('登录失败');
+        showAdmin();
+      } catch (e) { alert(e.message); }
+    }
+
+    async function logout() {
+      await fetch('/api/admin/logout', { method: 'POST' });
+      location.reload();
+    }
+
+    async function checkAuth() {
+      try {
+        const res = await fetch('/api/admin/stats');
+        if (res.ok) showAdmin();
+      } catch (e) {}
+    }
+
+    function showAdmin() {
+      document.getElementById('login-view').style.display = 'none';
+      document.getElementById('admin-view').style.display = 'flex';
+      loadDashboard();
+    }
+
+    // ========== Tab 切换 ==========
+    function switchTab(tab, btn) {
+      document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.sidebar-item').forEach(b => b.classList.remove('active'));
+      document.getElementById('tab-' + tab).classList.add('active');
+      btn.classList.add('active');
+
+      if (tab === 'dashboard') loadDashboard();
+      if (tab === 'products') loadProducts();
+      if (tab === 'orders') loadOrders();
+    }
+
+    // ========== 仪表盘 ==========
+    async function loadDashboard() {
+      try {
+        const [statsRes, ordersRes] = await Promise.all([
+          fetch('/api/admin/stats'),
+          fetch('/api/admin/orders')
+        ]);
+        const stats = await statsRes.json();
+        const orders = await ordersRes.json();
+
+        document.getElementById('stats').innerHTML = `
+          <div class="stat-card"><div class="stat-label">今日订单</div><div class="stat-value">${stats.todayOrders}</div></div>
+          <div class="stat-card"><div class="stat-label">今日收入</div><div class="stat-value">¥${stats.todayRevenue.toFixed(2)}</div></div>
+          <div class="stat-card"><div class="stat-label">总订单</div><div class="stat-value">${stats.totalOrders}</div></div>
+          <div class="stat-card"><div class="stat-label">总收入</div><div class="stat-value">¥${stats.totalRevenue.toFixed(2)}</div></div>
+          <div class="stat-card"><div class="stat-label">商品数</div><div class="stat-value">${stats.totalProducts}</div></div>
+          <div class="stat-card"><div class="stat-label">待处理</div><div class="stat-value">${stats.pendingOrders}</div></div>
+        `;
+
+        const recent = orders.slice(0, 10);
+        document.getElementById('recent-orders').innerHTML = renderOrderTable(recent, true);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    // ========== 商品管理 ==========
+    async function loadProducts() {
+      const res = await fetch('/api/admin/products');
+      const products = await res.json();
+
+      document.getElementById('products-table').innerHTML = `
+        <table>
+          <tr><th>名称</th><th>分类</th><th>价格</th><th>库存</th><th>销量</th><th>状态</th><th>操作</th></tr>
+          ${products.map(p => `
+            <tr>
+              <td><strong>${p.name}</strong></td>
+              <td>${p.category}</td>
+              <td>¥${p.price.toFixed(2)}</td>
+              <td>${p.stock}</td>
+              <td>${p.sales || 0}</td>
+              <td>${p.enabled ? '<span class="badge badge-success">启用</span>' : '<span class="badge badge-danger">禁用</span>'}</td>
+              <td>
+                <button class="action-btn" onclick="openCards('${p.id}', '${p.name}')">卡密</button>
+                <button class="action-btn" onclick="toggleProduct('${p.id}', ${!p.enabled})">${p.enabled ? '禁用' : '启用'}</button>
+                <button class="action-btn danger" onclick="deleteProduct('${p.id}')">删除</button>
+              </td>
+            </tr>
+          `).join('')}
+        </table>
+      `;
+    }
+
+    async function addProduct() {
+      const data = {
+        name: document.getElementById('p-name').value.trim(),
+        category: document.getElementById('p-category').value.trim() || '默认',
+        price: parseFloat(document.getElementById('p-price').value),
+        description: document.getElementById('p-desc').value.trim()
+      };
+      if (!data.name || !data.price) return alert('请填写名称和价格');
+
+      await fetch('/api/admin/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      document.getElementById('p-name').value = '';
+      document.getElementById('p-price').value = '';
+      document.getElementById('p-desc').value = '';
+      loadProducts();
+    }
+
+    async function toggleProduct(id, enabled) {
+      await fetch(`/api/admin/products/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled })
+      });
+      loadProducts();
+    }
+
+    async function deleteProduct(id) {
+      if (!confirm('确定删除？')) return;
+      await fetch(`/api/admin/products/${id}`, { method: 'DELETE' });
+      loadProducts();
+    }
+
+    // ========== 卡密管理 ==========
+    async function openCards(productId, productName) {
+      currentCardProductId = productId;
+      document.getElementById('card-modal-title').textContent = productName + ' - 卡密管理';
+      document.getElementById('card-content').value = '';
+      document.getElementById('card-modal').classList.add('show');
+      await loadCards(productId);
+    }
+
+    async function loadCards(productId) {
+      const res = await fetch(`/api/admin/cards/${productId}`);
+      const cards = await res.json();
+
+      const available = cards.filter(c => !c.sold);
+      const sold = cards.filter(c => c.sold);
+
+      document.getElementById('cards-list').innerHTML = `
+        <p style="margin-bottom:0.5rem;">可用: <strong>${available.length}</strong> · 已售: <strong>${sold.length}</strong></p>
+        ${available.length > 0 ? `
+          <div style="max-height:200px;overflow-y:auto;background:var(--bg);padding:0.75rem;border-radius:8px;font-family:monospace;font-size:0.8rem;">
+            ${available.map(c => `<div style="padding:0.2rem 0;border-bottom:1px solid var(--border);">${c.content}</div>`).join('')}
+          </div>
+        ` : '<p style="color:var(--text-3)">暂无可用卡密</p>'}
+      `;
+    }
+
+    async function addCards() {
+      const content = document.getElementById('card-content').value.trim();
+      if (!content) return alert('请输入卡密');
+
+      const res = await fetch(`/api/admin/cards/${currentCardProductId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content })
+      });
+      const data = await res.json();
+      document.getElementById('card-content').value = '';
+      alert(`成功添加 ${data.added} 条卡密`);
+      await loadCards(currentCardProductId);
+      loadProducts();
+    }
+
+    // ========== 订单管理 ==========
+    async function loadOrders() {
+      const res = await fetch('/api/admin/orders');
+      const orders = await res.json();
+      document.getElementById('orders-table').innerHTML = renderOrderTable(orders, false);
+    }
+
+    function renderOrderTable(orders, compact) {
+      if (orders.length === 0) return '<div class="empty">暂无订单</div>';
+
+      return `
+        <table>
+          <tr>
+            <th>订单号</th><th>商品</th><th>金额</th><th>状态</th><th>时间</th>
+            ${compact ? '' : '<th>操作</th>'}
+          </tr>
+          ${orders.map(o => `
+            <tr>
+              <td style="font-family:monospace;font-size:0.8rem;">${o.tradeNo}</td>
+              <td>${o.productName}</td>
+              <td>¥${o.totalPrice.toFixed(2)}</td>
+              <td>${statusBadge(o.status)}</td>
+              <td style="font-size:0.8rem;white-space:nowrap;">${new Date(o.createdAt).toLocaleString('zh-CN')}</td>
+              ${compact ? '' : `<td>${orderActions(o)}</td>`}
+            </tr>
+          `).join('')}
+        </table>
+      `;
+    }
+
+    function statusBadge(status) {
+      const map = {
+        pending: '<span class="badge badge-warning">待支付</span>',
+        paid: '<span class="badge badge-info">已支付</span>',
+        completed: '<span class="badge badge-success">已完成</span>',
+        expired: '<span class="badge badge-danger">已过期</span>'
+      };
+      return map[status] || status;
+    }
+
+    function orderActions(order) {
+      if (order.status === 'pending') {
+        return `
+          <button class="action-btn" onclick="confirmOrder('${order.id}')">确认收款</button>
+          <button class="action-btn danger" onclick="expireOrder('${order.id}')">作废</button>
+        `;
+      }
+      if (order.status === 'completed' && order.cards.length > 0) {
+        return `<button class="action-btn" onclick="alert('${order.cards.join('\\n')}')">查看卡密</button>`;
+      }
+      return '-';
+    }
+
+    async function confirmOrder(id) {
+      if (!confirm('确认已收到款项？')) return;
+      const res = await fetch(`/api/admin/orders/${id}/confirm`, { method: 'POST' });
+      const data = await res.json();
+      if (data.card) alert('卡密：' + data.card);
+      loadOrders();
+      loadDashboard();
+    }
+
+    async function expireOrder(id) {
+      if (!confirm('确定作废此订单？')) return;
+      await fetch(`/api/admin/orders/${id}/expire`, { method: 'POST' });
+      loadOrders();
+    }
+
+    // ========== 上传收款码 ==========
+    async function uploadQR(input, type) {
+      const file = input.files[0];
+      if (!file) return;
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch('/api/admin/upload', { method: 'POST', body: formData });
+      const data = await res.json();
+      alert(`已上传: ${data.url}\n请更新 config.js 中 payment.qrcode.${type} 的值`);
+    }
+
+    // ========== 初始化 ==========
+    checkAuth();
+  </script>
+</body>
+</html>

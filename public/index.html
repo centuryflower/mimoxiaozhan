@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>自动发卡 - 会员账号自动发货</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <!-- 顶部 -->
+  <header class="header">
+    <div class="container header-inner">
+      <a href="/" class="logo">⚡ 自动发卡</a>
+      <nav class="nav">
+        <a href="/query" class="nav-link">订单查询</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- 公告 -->
+  <div class="notice" id="notice">
+    <div class="container">
+      <span class="notice-icon">📢</span>
+      <span class="notice-text" id="notice-text"></span>
+    </div>
+  </div>
+
+  <!-- 商品列表 -->
+  <main class="main">
+    <div class="container">
+      <div class="section-title">商品列表</div>
+      <div class="products" id="products">
+        <div class="loading">加载中...</div>
+      </div>
+    </div>
+  </main>
+
+  <!-- 购买弹窗 -->
+  <div class="modal-overlay" id="buy-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title">确认购买</h3>
+        <button class="modal-close" onclick="closeModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="buy-product" id="buy-product-name"></div>
+        <div class="buy-price" id="buy-product-price"></div>
+
+        <div class="form-group">
+          <label class="form-label">购买数量</label>
+          <input type="number" class="form-input" id="buy-quantity" value="1" min="1" max="10">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">联系邮箱 <span class="form-hint">（用于接收卡密）</span></label>
+          <input type="email" class="form-input" id="buy-email" placeholder="your@email.com">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">支付方式</label>
+          <div class="payment-methods" id="payment-methods"></div>
+        </div>
+
+        <div class="buy-total">
+          <span>应付金额</span>
+          <span class="buy-total-price" id="buy-total-price">¥0.00</span>
+        </div>
+
+        <button class="btn btn-primary btn-block" id="btn-pay" onclick="submitOrder()">立即支付</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 支付弹窗 -->
+  <div class="modal-overlay" id="pay-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title">扫码支付</h3>
+        <button class="modal-close" onclick="closePayModal()">&times;</button>
+      </div>
+      <div class="modal-body" style="text-align: center;">
+        <div class="pay-amount" id="pay-amount"></div>
+        <div class="pay-qrcode" id="pay-qrcode"></div>
+        <p class="pay-hint">支付完成后请稍等片刻，系统将自动发货</p>
+        <p class="pay-hint">订单号：<span id="pay-trade-no"></span></p>
+        <button class="btn btn-outline" onclick="checkPayStatus()">我已支付</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 页脚 -->
+  <footer class="footer">
+    <div class="container">
+      <span>© 2026 自动发卡平台</span>
+    </div>
+  </footer>
+
+  <script src="/app.js"></script>
+</body>
+</html>
